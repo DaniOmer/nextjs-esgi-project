@@ -1,5 +1,18 @@
 import httpClient from "../http/api";
 
+export const getPokemonByPokedexId = async (pokedexId: number | string) => {
+  try {
+    const response = await httpClient.get(`/pokemons/${pokedexId}`);
+    return response.data;
+  } catch (error) {
+    console.error(
+      `API Error fetching Pokemon with pokedexId ${pokedexId}:`,
+      error
+    );
+    throw error;
+  }
+};
+
 export const getTypes = async () => {
   try {
     const response = await httpClient.get("/types");

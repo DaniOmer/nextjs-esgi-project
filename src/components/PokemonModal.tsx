@@ -1,5 +1,6 @@
 import React from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/modal";
 
 interface PokemonType {
@@ -69,7 +70,14 @@ const PokemonModal: React.FC<PokemonModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const router = useRouter();
+
   if (!pokemon) return null;
+
+  const handleViewFullDetails = () => {
+    router.push(`/pokemons/${pokemon.pokedexId}`);
+    onClose(); // Close the modal when navigating
+  };
 
   // Helper function to get the correct stat value
   const getStat = (statName: string): number => {
@@ -150,6 +158,16 @@ const PokemonModal: React.FC<PokemonModalProps> = ({
             <span className="text-sm text-gray-600 dark:text-gray-400">
               Génération {pokemon.generation}
             </span>
+          </div>
+
+          {/* View Full Details Button */}
+          <div className="mt-4">
+            <button
+              onClick={handleViewFullDetails}
+              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors duration-200 flex items-center justify-center"
+            >
+              Voir la fiche complète
+            </button>
           </div>
         </div>
 
