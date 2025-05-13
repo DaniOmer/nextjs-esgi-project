@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppDispatch, useAppSelector } from "@/utils/store/hooks";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { getPokemonsThunk } from "@/utils/store/pokemons/pokemonSlice";
 import PokemonCard from "@/components/PokemonCard";
 
@@ -15,17 +15,54 @@ export default function Home() {
     total,
   } = useAppSelector((state) => state.pokemons);
 
+  // Reference to the element to observe
+  const observerRef = useRef<HTMLDivElement>(null);
+  // Reference to the observer instance
+  const observerInstance = useRef<IntersectionObserver | null>(null);
+
+  // Initial loading of Pokémon
   useEffect(() => {
     dispatch(getPokemonsThunk({}));
   }, [dispatch]);
 
-  const loadMore = () => {
-    // Ensure page is a number before incrementing
-    const currentPage = typeof page === "number" ? page : 1;
-    const nextPage = currentPage + 1;
-    console.log("Loading page:", nextPage);
-    dispatch(getPokemonsThunk({ page: nextPage }));
-  };
+  // Function to load more Pokémon
+  const loadMore = useCallback(() => {
+    if (status !== "loading") {
+      const currentPage = typeof page === "number" ? page : 1;
+      const nextPage = currentPage + 1;
+      console.log("Loading page:", nextPage);
+      dispatch(getPokemonsThunk({ page: nextPage }));
+    }
+  }, [dispatch, page, status]);
+
+  useEffect(() => {
+    if (observerInstance.current) {
+      observerInstance.current.disconnect();
+    }
+
+    observerInstance.current = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && status !== "loading") {
+          console.log("Loading more Pokémon");
+          loadMore();
+        }
+      },
+      {
+        rootMargin: "50px",
+        threshold: 0.1,
+      }
+    );
+
+    if (observerRef.current) {
+      observerInstance.current.observe(observerRef.current);
+    }
+
+    return () => {
+      if (observerInstance.current) {
+        observerInstance.current.disconnect();
+      }
+    };
+  }, [loadMore, status]);
 
   const isLoading = status === "loading";
 
@@ -45,24 +82,18 @@ export default function Home() {
             ))}
           </div>
 
-          {pokemons.length > 0 && (
-            <div className="mt-10 flex justify-center">
-              <button
-                onClick={loadMore}
-                disabled={isLoading}
-                className="px-6 py-3 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center gap-2"
-              >
-                {isLoading ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 border-t-2 border-b-2 border-white rounded-full"></div>
-                    Chargement...
-                  </>
-                ) : (
-                  "Charger plus de Pokémon"
-                )}
-              </button>
-            </div>
-          )}
+          {/* Observed element for infinite scroll */}
+          <div
+            ref={observerRef}
+            className="h-10 w-full flex justify-center items-center my-8"
+          >
+            {isLoading && (
+              <div className="flex items-center gap-2">
+                <div className="animate-spin h-5 w-5 border-t-2 border-b-2 border-blue-500 rounded-full"></div>
+                <span className="text-gray-500">Chargement...</span>
+              </div>
+            )}
+          </div>
         </>
       )}
     </div>
