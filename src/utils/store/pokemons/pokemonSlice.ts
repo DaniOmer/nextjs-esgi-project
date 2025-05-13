@@ -1,5 +1,5 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { getPokemons } from "@/utils/services/pokemons";
+import { getPokemons, getTypes } from "@/utils/services/pokemons";
 
 interface PokemonType {
   id: number;
@@ -43,6 +43,10 @@ interface PokemonState {
   page: number;
   total: number;
   searchTerm: string | null;
+  types: PokemonType[];
+  selectedTypes: number[];
+  typesStatus: "idle" | "loading" | "succeeded" | "failed";
+  typesError: string | null;
 }
 
 const initialState: PokemonState = {
@@ -53,7 +57,16 @@ const initialState: PokemonState = {
   page: 1,
   total: 0,
   searchTerm: null,
+  types: [],
+  selectedTypes: [],
+  typesStatus: "idle",
+  typesError: null,
 };
+
+export const getTypesThunk = createAsyncThunk("pokemons/getTypes", async () => {
+  const response = await getTypes();
+  return response;
+});
 
 export const getPokemonsThunk = createAsyncThunk(
   "pokemons/getPokemons",
@@ -72,7 +85,9 @@ export const getPokemonsThunk = createAsyncThunk(
       limit = state.pokemons.limit,
       page = state.pokemons.page,
       typeId,
-      types,
+      types = state.pokemons.selectedTypes.length > 0
+        ? state.pokemons.selectedTypes
+        : undefined,
       name,
     } = params;
 
@@ -132,8 +147,25 @@ const pokemonSlice = createSlice({
       state.error = action.payload;
       state.status = "failed";
     },
+    setSelectedTypes: (state, action: PayloadAction<number[]>) => {
+      state.selectedTypes = action.payload;
+    },
   },
   extraReducers: (builder) => {
+    // Types reducers
+    builder.addCase(getTypesThunk.pending, (state) => {
+      state.typesStatus = "loading";
+    });
+    builder.addCase(getTypesThunk.fulfilled, (state, action) => {
+      state.types = action.payload;
+      state.typesStatus = "succeeded";
+    });
+    builder.addCase(getTypesThunk.rejected, (state, action) => {
+      state.typesStatus = "failed";
+      state.typesError = action.error.message ?? null;
+    });
+
+    // Pokemons reducers
     builder.addCase(getPokemonsThunk.pending, (state) => {
       state.status = "loading";
     });
@@ -205,5 +237,6 @@ const pokemonSlice = createSlice({
   },
 });
 
-export const { setPokemons, setLoading, setError } = pokemonSlice.actions;
+export const { setPokemons, setLoading, setError, setSelectedTypes } =
+  pokemonSlice.actions;
 export default pokemonSlice.reducer;

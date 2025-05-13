@@ -2,7 +2,10 @@
 
 import { useAppDispatch, useAppSelector } from "@/utils/store/hooks";
 import { useEffect, useRef, useCallback, useState } from "react";
-import { getPokemonsThunk } from "@/utils/store/pokemons/pokemonSlice";
+import {
+  getPokemonsThunk,
+  getTypesThunk,
+} from "@/utils/store/pokemons/pokemonSlice";
 import PokemonCard from "@/components/PokemonCard";
 
 export default function Home() {
@@ -22,11 +25,17 @@ export default function Home() {
 
   // Initial loading of Pokémon
   useEffect(() => {
+    // Get types first
+    dispatch(getTypesThunk());
+
+    // Then load initial Pokémon
     dispatch(getPokemonsThunk({}));
   }, [dispatch]);
 
-  // Get searchTerm from the store
-  const { searchTerm } = useAppSelector((state) => state.pokemons);
+  // Get searchTerm and selectedTypes from the store
+  const { searchTerm, selectedTypes } = useAppSelector(
+    (state) => state.pokemons
+  );
 
   // Function to load more Pokémon
   const loadMore = useCallback(() => {
@@ -40,14 +49,27 @@ export default function Home() {
         searchTerm ? `with search: ${searchTerm}` : ""
       );
 
-      // Si une recherche est active, inclure le terme de recherche dans la requête
+      // Prepare request params
+      const params: {
+        page: number;
+        name?: string;
+        types?: number[];
+      } = { page: nextPage };
+
+      // Add search term if present
       if (searchTerm) {
-        dispatch(getPokemonsThunk({ page: nextPage, name: searchTerm }));
-      } else {
-        dispatch(getPokemonsThunk({ page: nextPage }));
+        params.name = searchTerm;
       }
+
+      // Add selected types if present
+      if (selectedTypes.length > 0) {
+        params.types = selectedTypes;
+      }
+
+      // Dispatch the request with all params
+      dispatch(getPokemonsThunk(params));
     }
-  }, [dispatch, page, status, searchTerm]);
+  }, [dispatch, page, status, searchTerm, selectedTypes]);
 
   // Track if all results have been loaded
   const [allLoaded, setAllLoaded] = useState(false);
@@ -99,7 +121,7 @@ export default function Home() {
   const isLoading = status === "loading";
 
   return (
-    <div className="py-10 px-4 md:px-8 max-w-7xl mx-auto">
+    <div className="pt-28 pb-10 px-4 md:px-8 max-w-7xl mx-auto">
       <h1 className="text-3xl font-bold mb-8 text-center">Pokédex</h1>
 
       {isLoading && pokemons.length === 0 ? (

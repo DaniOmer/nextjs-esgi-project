@@ -1,8 +1,13 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
-import { useAppDispatch } from "@/utils/store/hooks";
-import { getPokemonsThunk } from "@/utils/store/pokemons/pokemonSlice";
+import { MultiSelect } from "@/components/ui/multi-select";
+import { useAppDispatch, useAppSelector } from "@/utils/store/hooks";
+import {
+  getPokemonsThunk,
+  getTypesThunk,
+  setSelectedTypes,
+} from "@/utils/store/pokemons/pokemonSlice";
 import { useState, useEffect, useRef } from "react";
 
 function Header() {
@@ -10,8 +15,33 @@ function Header() {
   const [searchTerm, setSearchTerm] = useState("");
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Get types and selected types from the store
+  const { types, selectedTypes, typesStatus } = useAppSelector(
+    (state) => state.pokemons
+  );
+
+  // Fetch types when component mounts
+  useEffect(() => {
+    if (typesStatus === "idle") {
+      dispatch(getTypesThunk());
+    }
+  }, [dispatch, typesStatus]);
+
   // Track the previous search term to avoid duplicate requests
   const prevSearchTermRef = useRef<string>("");
+
+  // Handle type selection changes
+  const handleTypeChange = (newSelectedTypes: number[]) => {
+    dispatch(setSelectedTypes(newSelectedTypes));
+
+    // Reload pokemons with the new type filter
+    dispatch(
+      getPokemonsThunk({
+        page: 1,
+        name: searchTerm.trim() || undefined,
+      })
+    );
+  };
 
   // Fonction pour gérer le changement dans l'input de recherche
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -67,45 +97,56 @@ function Header() {
   }, []);
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm shadow-sm h-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-sm shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+        <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-green-600 to-gray-600 bg-clip-text text-transparent">
             Pokemon
           </h1>
-          <div className="w-64 relative">
-            <Input
-              type="text"
-              placeholder="Rechercher un Pokemon..."
-              className="w-full rounded-full border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all pr-10"
-              value={searchTerm}
-              onChange={handleSearchChange}
-            />
-            {searchTerm && (
-              <button
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                onClick={() => {
-                  console.log("Clearing search");
-                  setSearchTerm("");
-                  prevSearchTermRef.current = ""; // Reset the previous search term reference
-                  dispatch(getPokemonsThunk({ page: 1 }));
-                }}
-                aria-label="Effacer la recherche"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
+          <div className="flex flex-col md:flex-row gap-3 w-full max-w-xl">
+            <div className="relative flex-1">
+              <Input
+                type="text"
+                placeholder="Rechercher un Pokemon..."
+                className="w-full rounded-full border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all pr-10"
+                value={searchTerm}
+                onChange={handleSearchChange}
+              />
+              {searchTerm && (
+                <button
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  onClick={() => {
+                    console.log("Clearing search");
+                    setSearchTerm("");
+                    prevSearchTermRef.current = ""; // Reset the previous search term reference
+                    dispatch(getPokemonsThunk({ page: 1 }));
+                  }}
+                  aria-label="Effacer la recherche"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            )}
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              )}
+            </div>
+            <div className="flex-1">
+              <MultiSelect
+                options={types}
+                selectedValues={selectedTypes}
+                onValuesChange={handleTypeChange}
+                placeholder="Filtrer par type..."
+                className="w-full"
+              />
+            </div>
           </div>
         </div>
       </div>
