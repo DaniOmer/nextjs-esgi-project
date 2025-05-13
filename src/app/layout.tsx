@@ -4,6 +4,8 @@ import "./globals.css";
 
 import Header from "@/components/layouts/header";
 import Footer from "@/components/layouts/footer";
+import StoreProvider from "@/utils/store/StoreProvider";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -29,9 +31,11 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <Header />
-        <div className="mt-16 min-h-[calc(100vh-128px)]">{children}</div>
-        <Footer />
+        <StoreProvider>
+          <Header />
+          <div className="mt-16 min-h-[calc(100vh-128px)]">{children}</div>
+          <Footer />
+        </StoreProvider>
       </body>
     </html>
   );
