@@ -42,6 +42,7 @@ interface PokemonState {
   limit: number;
   page: number;
   total: number;
+  searchTerm: string | null;
 }
 
 const initialState: PokemonState = {
@@ -51,6 +52,7 @@ const initialState: PokemonState = {
   limit: 50,
   page: 1,
   total: 0,
+  searchTerm: null,
 };
 
 export const getPokemonsThunk = createAsyncThunk(
@@ -74,12 +76,42 @@ export const getPokemonsThunk = createAsyncThunk(
       name,
     } = params;
 
+    console.log("Fetching pokemons with params:", {
+      limit,
+      page,
+      typeId,
+      types,
+      name,
+    });
+
+    // Check if we're trying to load a page beyond what we already have for the same search term
+    const isLoadingMore = page > 1;
+    const isSameSearch = (name || null) === state.pokemons.searchTerm;
+
+    // If we're loading more for the same search and we already have fewer items than expected,
+    // it means we've loaded all available results
+    if (
+      isLoadingMore &&
+      isSameSearch &&
+      state.pokemons.list.length < (page - 1) * limit
+    ) {
+      console.log("All results already loaded, skipping request");
+      return {
+        pokemons: [], // Return empty array to indicate no new results
+        limit,
+        page: page - 1, // Stay on the current page
+        total: state.pokemons.list.length,
+        searchTerm: name || null,
+      };
+    }
+
     const response = await getPokemons({ limit, page, typeId, types, name });
     return {
       pokemons: response,
       limit,
       page: page, // Ensure we're using the page from the request, not from the response
       total: response.length, // This should be updated if the API returns total count
+      searchTerm: name || null, // Track if this is a search request
     };
   }
 );
@@ -106,11 +138,48 @@ const pokemonSlice = createSlice({
       state.status = "loading";
     });
     builder.addCase(getPokemonsThunk.fulfilled, (state, action) => {
-      // If it's the first page, replace the list, otherwise append to it
-      if (action.payload.page === 1) {
-        state.list = action.payload.pokemons;
-      } else {
-        // Append new pokemons to the existing list, avoiding duplicates
+      // Déterminer si c'est une recherche et/ou la première page
+      const isSearch = action.payload.searchTerm !== null;
+      const isFirstPage = action.payload.page === 1;
+      const isNewSearch =
+        isSearch && state.searchTerm !== action.payload.searchTerm;
+
+      // Vérifier si la réponse est vide
+      if (!action.payload.pokemons || action.payload.pokemons.length === 0) {
+        console.log("Empty response, keeping current list");
+        // Ne rien faire, garder la liste actuelle
+      }
+      // Cas 1: Nouvelle recherche - remplacer complètement la liste
+      else if (isNewSearch) {
+        console.log("CASE 1: New search - Replacing list with search results");
+        state.list = [...action.payload.pokemons];
+      }
+      // Cas 2: Première page d'une recherche existante - remplacer la liste
+      else if (isSearch && isFirstPage) {
+        console.log("CASE 2: First page of existing search - Replacing list");
+        state.list = [...action.payload.pokemons];
+      }
+      // Cas 3: Page suivante d'une recherche - ajouter à la liste existante
+      else if (isSearch && !isFirstPage) {
+        console.log("CASE 3: Next page of search - Adding to existing list");
+        const existingIds = new Set(
+          state.list.map((pokemon: Pokemon) => pokemon.id)
+        );
+        const newPokemons = action.payload.pokemons.filter(
+          (pokemon: Pokemon) => !existingIds.has(pokemon.id)
+        );
+        state.list = [...state.list, ...newPokemons];
+      }
+      // Cas 4: Première page sans recherche - remplacer la liste
+      else if (!isSearch && isFirstPage) {
+        console.log("CASE 4: First page without search - Replacing list");
+        state.list = [...action.payload.pokemons];
+      }
+      // Cas 5: Page suivante sans recherche - ajouter à la liste existante
+      else {
+        console.log(
+          "CASE 5: Next page without search - Adding to existing list"
+        );
         const existingIds = new Set(
           state.list.map((pokemon: Pokemon) => pokemon.id)
         );
@@ -120,9 +189,13 @@ const pokemonSlice = createSlice({
         state.list = [...state.list, ...newPokemons];
       }
 
+      // Vérification finale pour s'assurer que la liste est correcte
+      console.log("Final list length:", state.list.length);
+
       state.limit = action.payload.limit;
       state.page = action.payload.page;
       state.total = action.payload.total;
+      state.searchTerm = action.payload.searchTerm;
       state.status = "succeeded";
     });
     builder.addCase(getPokemonsThunk.rejected, (state, action) => {

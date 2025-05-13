@@ -1,7 +1,7 @@
 "use client";
 
 import { useAppDispatch, useAppSelector } from "@/utils/store/hooks";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { getPokemonsThunk } from "@/utils/store/pokemons/pokemonSlice";
 import PokemonCard from "@/components/PokemonCard";
 
@@ -25,15 +25,43 @@ export default function Home() {
     dispatch(getPokemonsThunk({}));
   }, [dispatch]);
 
+  // Get searchTerm from the store
+  const { searchTerm } = useAppSelector((state) => state.pokemons);
+
   // Function to load more Pokémon
   const loadMore = useCallback(() => {
     if (status !== "loading") {
       const currentPage = typeof page === "number" ? page : 1;
       const nextPage = currentPage + 1;
-      console.log("Loading page:", nextPage);
-      dispatch(getPokemonsThunk({ page: nextPage }));
+
+      console.log(
+        "Loading page:",
+        nextPage,
+        searchTerm ? `with search: ${searchTerm}` : ""
+      );
+
+      // Si une recherche est active, inclure le terme de recherche dans la requête
+      if (searchTerm) {
+        dispatch(getPokemonsThunk({ page: nextPage, name: searchTerm }));
+      } else {
+        dispatch(getPokemonsThunk({ page: nextPage }));
+      }
     }
-  }, [dispatch, page, status]);
+  }, [dispatch, page, status, searchTerm]);
+
+  // Track if all results have been loaded
+  const [allLoaded, setAllLoaded] = useState(false);
+
+  // Update allLoaded state when pokemons or total changes
+  useEffect(() => {
+    // If we received fewer items than the limit, we've loaded all available results
+    if (pokemons.length > 0 && pokemons.length < page * limit) {
+      console.log("All Pokémon loaded, no more to fetch");
+      setAllLoaded(true);
+    } else {
+      setAllLoaded(false);
+    }
+  }, [pokemons.length, page, limit]);
 
   useEffect(() => {
     if (observerInstance.current) {
@@ -42,7 +70,11 @@ export default function Home() {
 
     observerInstance.current = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && status !== "loading") {
+        // Only load more if:
+        // 1. The element is intersecting
+        // 2. We're not currently loading
+        // 3. We haven't loaded all available results
+        if (entries[0].isIntersecting && status !== "loading" && !allLoaded) {
           console.log("Loading more Pokémon");
           loadMore();
         }
@@ -62,7 +94,7 @@ export default function Home() {
         observerInstance.current.disconnect();
       }
     };
-  }, [loadMore, status]);
+  }, [loadMore, status, allLoaded]);
 
   const isLoading = status === "loading";
 
