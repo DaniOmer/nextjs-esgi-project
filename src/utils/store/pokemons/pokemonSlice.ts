@@ -1,39 +1,6 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
 import { getPokemons, getTypes } from "@/utils/services/pokemons";
-
-interface PokemonType {
-  id: number;
-  name: string;
-  image: string;
-}
-
-interface PokemonEvolution {
-  name: string;
-  pokedexId: number;
-}
-
-interface PokemonStats {
-  HP: number;
-  speed: number;
-  attack: number;
-  defense: number;
-  specialAttack: number;
-  specialDefense: number;
-  special_attack: number;
-  special_defense: number;
-}
-
-interface Pokemon {
-  id: number;
-  pokedexId: number;
-  name: string;
-  image: string;
-  sprite: string;
-  stats: PokemonStats;
-  generation: number;
-  evolutions: PokemonEvolution[];
-  types: PokemonType[];
-}
+import { Pokemon, PokemonType, PokemonParams } from "@/utils/types/pokemon";
 
 interface PokemonState {
   list: Pokemon[];

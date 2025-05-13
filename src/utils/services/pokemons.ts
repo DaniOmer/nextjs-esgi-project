@@ -1,4 +1,5 @@
 import httpClient from "../http/api";
+import { PokemonParams } from "@/utils/types/pokemon";
 
 export const getPokemonByPokedexId = async (pokedexId: number | string) => {
   try {
@@ -22,14 +23,6 @@ export const getTypes = async () => {
     throw error;
   }
 };
-
-interface PokemonParams {
-  page?: number;
-  limit?: number;
-  typeId?: number;
-  types?: number[];
-  name?: string;
-}
 
 export const getPokemons = async (
   params: PokemonParams = { page: 1, limit: 50 }
